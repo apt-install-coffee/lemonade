@@ -230,19 +230,27 @@ void AudioServer::load(const std::string& model_name,
     }
     LOG(INFO, "AudioServer") << "Engine backend: " << engine_backend << std::endl;
 
+    json model_entry = {
+        {"id", model_name},
+        {"family", family},
+        {"path", model_path},
+        {"task", "tts"},
+        {"mode", "streaming"},
+        {"voice_presets", voice_presets},
+    };
+    // Per-model request defaults — e.g. breeze's instruction (the designed
+    // voice identity) — applied by the engine to every request for this model.
+    json request_defaults = model_info.extra<json>("audio_defaults", json::object());
+    if (request_defaults.is_object() && !request_defaults.empty()) {
+        model_entry["default_request_options"] = request_defaults;
+    }
+
     json server_config = {
         {"host", "127.0.0.1"},
         {"port", port_},
         {"backend", engine_backend},
         {"lazy_load", false},
-        {"models", json::array({{
-            {"id", model_name},
-            {"family", family},
-            {"path", model_path},
-            {"task", "tts"},
-            {"mode", "streaming"},
-            {"voice_presets", voice_presets},
-        }})},
+        {"models", json::array({model_entry})},
     };
 
     // Native filesystem math keeps wide Windows temp paths intact; converting
@@ -310,6 +318,13 @@ void AudioServer::audio_speech(const json& request, httplib::DataSink& sink) {
     // server.json declares the loaded model under its canonical Lemonade name;
     // a client alias ("builtin.Audio-TTS") would be an unknown id upstream.
     tts_request["model"] = get_model_name();
+
+    // lemonade's clone convention (see the openmoss backend) carries the
+    // reference clip inline; audio.cpp wants it as a base64 voice_ref.
+    if (tts_request.contains("reference_wav_b64")) {
+        tts_request["voice_ref"] = {{"type", "base64"}, {"data", tts_request["reference_wav_b64"]}};
+        tts_request.erase("reference_wav_b64");
+    }
 
     // audiocpp_server streams only when stream_format is present, and its only
     // raw streaming transport is headerless PCM — which is also the only
