@@ -134,10 +134,20 @@ void AudioServer::load(const std::string& model_name,
         voice_presets["onyx"] = {{"voice_id", "M1"}};
     }
 
+    // The engine's GPU backend name differs per package: the Windows HIP fork
+    // accepts "hip", while the nix Linux package is a Vulkan build (RADV on
+    // amd_gpu). The config carries the value; audio_args may still pass
+    // --backend to override it (the CLI flag wins over the config).
+#ifdef _WIN32
+    const std::string engine_backend = "hip";
+#else
+    const std::string engine_backend = "vulkan";
+#endif
+
     json server_config = {
         {"host", "127.0.0.1"},
         {"port", port_},
-        {"backend", "hip"},
+        {"backend", engine_backend},
         {"lazy_load", false},
         {"models", json::array({{
             {"id", model_name},
@@ -158,13 +168,11 @@ void AudioServer::load(const std::string& model_name,
 
     std::vector<std::string> args = {
         "--config", path_to_utf8(config_path),
-        "--backend", "hip",
         "--no-ui"
     };
 
     std::set<std::string> reserved_flags = {
         "--config",
-        "--backend",
         "--host",
         "--port",
         "--ui",
