@@ -181,11 +181,12 @@ void AudioServer::load(const std::string& model_name,
     std::string family = model_info.extra<std::string>("audio_family", "supertonic");
     // The app's TTS settings offer the OpenAI voice names to any fixed-voice
     // model; map each onto a native preset style so none reaches the engine as
-    // an unknown id ("missing asset resource: voice_style_x").
+    // an unknown id ("missing asset resource: voice_style_x"). Families without
+    // a voice table get no presets.
     json voice_presets = json::object();
     if (family == "kokoro_tts") {
         voice_presets["onyx"] = {{"voice_id", "am_onyx"}};
-    } else {
+    } else if (family == "supertonic") {
         const std::vector<std::string> app_voices = {
             "alloy", "ash", "ballad", "coral", "echo", "fable",
             "marin", "nova", "onyx", "sage", "shimmer", "verse", "cedar"};
