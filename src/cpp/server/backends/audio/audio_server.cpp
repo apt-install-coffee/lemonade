@@ -4,6 +4,7 @@
 #include "lemon/backends/backend_ops.h"
 #include "lemon/backends/backend_registry.h"
 #include "lemon/backends/backend_utils.h"
+#include "lemon/backends/llamacpp/llamacpp_gguf.h"
 #include "lemon/error_types.h"
 #include "lemon/model_manager.h"
 #include "lemon/runtime_config.h"
@@ -83,6 +84,23 @@ std::string detect_engine_backend(const std::string& exe_path) {
     }
     return "";
 }
+
+class AudioOps : public BackendOps {
+public:
+    std::string resolve_checkpoint_path(const ModelInfo& info,
+                                        const CheckpointResolveContext& ctx) const override {
+        // Quant-style variants ("HoppouAI/Breeze-TTS-2.cpp:Q8_0") select a GGUF
+        // by filename suffix; the shared default resolver only matches exact
+        // file names, so main checkpoints without a path use the shared GGUF
+        // resolver (the same one llamacpp uses). Path-style variants
+        // ("dir/file.gguf") would hit that resolver's exact-filename case and
+        // miss, so those keep the default behavior.
+        if (ctx.type == "main" && ctx.variant.find('/') == std::string::npos) {
+            return llamacpp::resolve_gguf_path(ctx.model_cache_path, ctx.variant);
+        }
+        return BackendOps::resolve_checkpoint_path(info, ctx);
+    }
+};
 }  // namespace
 
 InstallParams AudioServer::get_install_params(const std::string& backend, const std::string& version) {
@@ -239,12 +257,23 @@ void AudioServer::load(const std::string& model_name,
         "--no-ui"
     };
 
+    // The engine only discovers model_specs relative to its working directory,
+    // not the executable; the nix package ships them next to bin/, so point it
+    // there when present (packages that embed every spec have no such dir and
+    // simply skip this).
+    fs::path spec_dir = fs::path(exe_path).parent_path().parent_path() / "model_specs";
+    if (fs::exists(spec_dir)) {
+        args.push_back("--model-spec-override");
+        args.push_back(path_to_utf8(spec_dir));
+    }
+
     std::set<std::string> reserved_flags = {
         "--config",
         "--host",
         "--port",
         "--ui",
-        "--no-ui"
+        "--no-ui",
+        "--model-spec-override"
     };
 
     std::string audio_args = options.get_option("audio_args");
@@ -305,7 +334,7 @@ std::unique_ptr<WrappedServer> create(const BackendContext& ctx) {
 }
 
 const BackendSpec* spec() { return make_spec<AudioServer>(descriptor); }
-const BackendOps* ops() { return default_backend_ops(); }
+const BackendOps* ops() { return single_ops<AudioOps>(); }
 
 }  // namespace audio
 }  // namespace backends
