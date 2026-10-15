@@ -49,7 +49,9 @@ InstallParams AudioServer::get_install_params(const std::string& backend, const 
             params.filename = "audiocpp-bin-win-hip-rocm7.1-x64.zip";
         }
 #else
-        throw std::runtime_error("ROCm audio.cpp backend is only supported on Windows");
+        throw std::runtime_error(
+            "audio.cpp ROCm has no downloadable package on Linux; install "
+            "audiocpp_server on PATH or set audio.rocm_bin to its full path");
 #endif
     } else {
         throw std::runtime_error("[AudioServer] Unknown audio.cpp backend: " + backend);
@@ -90,12 +92,27 @@ void AudioServer::load(const std::string& model_name,
     }
     RuntimeConfig::validate_backend_choice("audio", backend);
 
-    backend_manager_->install_backend(audio::spec()->recipe, backend);
-
     LOG(INFO, "AudioServer") << "Using model: " << model_path << std::endl;
     LOG(INFO, "AudioServer") << "Using backend: " << backend << std::endl;
 
-    std::string exe_path = BackendUtils::get_backend_binary_path(*audio::spec(), backend);
+    // A *_bin path pin skips the install flow entirely. Without one, Windows
+    // downloads the fork's HIP package; Linux has no package to download
+    // (upstream ships no AMD binaries, the fork's zips are Windows-only), so it
+    // runs the system audiocpp_server — the nix package puts it on PATH.
+    std::string exe_path = BackendUtils::find_external_backend_binary(audio::spec()->recipe, backend);
+    if (exe_path.empty()) {
+#ifdef _WIN32
+        backend_manager_->install_backend(audio::spec()->recipe, backend);
+        exe_path = BackendUtils::get_backend_binary_path(*audio::spec(), backend);
+#else
+        exe_path = utils::find_executable_in_path(audio::spec()->binary);
+        if (exe_path.empty()) {
+            throw std::runtime_error(
+                "audio.cpp ROCm has no downloadable package on Linux; install "
+                "audiocpp_server on PATH or set audio.rocm_bin to its full path");
+        }
+#endif
+    }
 
     port_ = choose_port();
     if (port_ == 0) {

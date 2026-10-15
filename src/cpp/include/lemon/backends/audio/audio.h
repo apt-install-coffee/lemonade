@@ -29,7 +29,7 @@ inline const BackendDescriptor descriptor = {
          "Custom arguments to pass to audiocpp_server (must not conflict with managed args)", "Audio.cpp Options"},
     },
     /*support*/ {
-        {"rocm", BackendTier::Experimental, BackendFormat::Native, {"windows"},
+        {"rocm", BackendTier::Experimental, BackendFormat::Native, {"linux", "windows"},
          {{"amd_gpu", {"gfx1100", "gfx1101", "gfx1102", "gfx1103", "gfx1150", "gfx1151", "gfx1200", "gfx1201"}}},
          "AMD Radeon (gfx1100 family and newer)"},
     },
