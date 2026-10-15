@@ -179,12 +179,22 @@ void AudioServer::load(const std::string& model_name,
     // Supertonic is the family the ROCm packages can actually run: it streams
     // and needs no espeak-ng, unlike kokoro_tts on this release.
     std::string family = model_info.extra<std::string>("audio_family", "supertonic");
-    // OpenAI voice aliases have no native equivalent in either family.
+    // The app's TTS settings offer the OpenAI voice names to any fixed-voice
+    // model; map each onto a native preset style so none reaches the engine as
+    // an unknown id ("missing asset resource: voice_style_x").
     json voice_presets = json::object();
     if (family == "kokoro_tts") {
         voice_presets["onyx"] = {{"voice_id", "am_onyx"}};
     } else {
-        voice_presets["onyx"] = {{"voice_id", "M1"}};
+        const std::vector<std::string> app_voices = {
+            "alloy", "ash", "ballad", "coral", "echo", "fable",
+            "marin", "nova", "onyx", "sage", "shimmer", "verse", "cedar"};
+        const std::vector<std::string> styles = {
+            "M1", "M2", "M3", "M4", "M5", "F1",
+            "F2", "F3", "F4", "F5", "M1", "M2", "M3"};
+        for (size_t i = 0; i < app_voices.size(); i++) {
+            voice_presets[app_voices[i]] = {{"voice_id", styles[i % styles.size()]}};
+        }
     }
 
     // The config carries the engine backend; audio_args may still pass
