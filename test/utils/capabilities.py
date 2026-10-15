@@ -278,6 +278,20 @@ CAPABILITIES = {
                 "tts_design": "MOSS-VoiceGen",
             },
         },
+        "audio.cpp": {
+            "backends": ["rocm"],
+            "supports": {
+                "tts": True,
+                # audiocpp_server serves WAV out of the box; MP3/Opus need
+                # optional encoder modules the ROCm packages do not build.
+                "tts_mp3": False,
+                "tts_opus": False,
+                "tts_speed": True,
+            },
+            "test_models": {
+                "tts": "Audio-TTS",
+            },
+        },
     },
     "omni": {
         # Omni "collection" models run a server-side tool-calling loop. The

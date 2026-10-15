@@ -5,6 +5,7 @@ const RAW_BASE = 'https://raw.githubusercontent.com/lemonade-sdk/lemonade';
 /* BEGIN GENERATED: models-js-recipes */
 const RECIPE_PRIORITY = [
   'acestep',
+  'audio.cpp',
   'ds4',
   'flm',
   'llamacpp-hrx',
@@ -36,7 +37,8 @@ const RECIPE_DISPLAY_NAMES = {
   acestep: 'ACE-Step',
   onnxruntime: 'ONNX Runtime',
   trellis: 'TRELLIS.2',
-  openmoss: 'OpenMOSS TTS'
+  openmoss: 'OpenMOSS TTS',
+  'audio.cpp': 'audio.cpp'
 };
 /* END GENERATED: models-js-recipes */
 

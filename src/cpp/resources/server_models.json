@@ -2380,6 +2380,15 @@
         ],
         "size": 0.354
     },
+    "Audio-TTS": {
+        "checkpoint": "audio-cpp/audio.cpp-gguf:Supertonic-3-GGUF/supertonic-3-f16.gguf",
+        "recipe": "audio.cpp",
+        "labels": [
+            "tts"
+        ],
+        "size": 0.31,
+        "audio_family": "supertonic"
+    },
     "ThinkSound-SFX": {
         "checkpoint": "ilintar/thinksound-gguf",
         "recipe": "thinksound",

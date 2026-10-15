@@ -5,12 +5,18 @@ Tests the /audio/speech endpoint.
 
 Usage:
     python server_tts.py
+    python server_tts.py --wrapped-server audio.cpp --backend rocm
     python server_tts.py --cli-binary /path/to/lemonade
 """
 
 import base64
 import requests
 
+from utils.capabilities import (
+    get_current_config,
+    get_test_model,
+    supports,
+)
 from utils.server_base import (
     ServerTestBase,
     run_server_tests,
@@ -23,18 +29,34 @@ from utils.test_models import (
 )
 
 
+def tts_model():
+    """Kokoro by default; the --wrapped-server backend's own model when set."""
+    if get_current_config()[0] is None:
+        return TTS_MODEL
+    return get_test_model("tts")
+
+
+def active_supports(feature):
+    """Kokoro serves everything this script asks for; narrower backends declare less."""
+    wrapped_server, backend, modality = get_current_config()
+    if wrapped_server is None:
+        return True
+    return supports(feature, wrapped_server, modality)
+
+
 class TextToSpeechTests(ServerTestBase):
     """Tests for Text to Speech."""
 
     def test_001_basic_tts(self):
-        """Test basic speech generation with Kokoro."""
+        """Test basic speech generation."""
+        response_format = "mp3" if active_supports("tts_mp3") else "wav"
         payload = {
-            "model": TTS_MODEL,
+            "model": tts_model(),
             "input": "Lemonade can speak",
-            "response_format": "mp3",
+            "response_format": response_format,
         }
 
-        print(f"[INFO] Sending speech generation request with model {TTS_MODEL}")
+        print(f"[INFO] Sending speech generation request with model {tts_model()}")
 
         response = requests.post(
             f"{self.base_url}/audio/speech",
@@ -48,10 +70,10 @@ class TextToSpeechTests(ServerTestBase):
             f"Speech generation failed with status {response.status_code}: {response.text}",
         )
 
-        # MP3 files start with specific magic bytes
+        magic = b"ID3" if response_format == "mp3" else b"RIFF"
         self.assertTrue(
-            response.content[:3] == b"ID3",
-            "Decoded data should be a valid MP3",
+            response.content[: len(magic)] == magic,
+            f"Decoded data should be a valid {response_format.upper()}",
         )
 
         print(f"[OK] Speech generation successful")
@@ -59,7 +81,7 @@ class TextToSpeechTests(ServerTestBase):
     def test_002_missing_input_error(self):
         """Test error handling when input is missing."""
         payload = {
-            "model": TTS_MODEL,
+            "model": tts_model(),
             # No prompt
         }
 
@@ -100,15 +122,16 @@ class TextToSpeechTests(ServerTestBase):
         print(f"[OK] Correctly rejected invalid model: {response.status_code}")
 
     def test_004_tts_voice(self):
-        """Test voice selection with Kokoro."""
+        """Test voice selection."""
+        response_format = "opus" if active_supports("tts_opus") else "wav"
         payload = {
-            "model": TTS_MODEL,
+            "model": tts_model(),
             "input": "Lemonade can speak",
             "voice": "onyx",
-            "response_format": "opus",
+            "response_format": response_format,
         }
 
-        print(f"[INFO] Sending speech generation request with model {TTS_MODEL}")
+        print(f"[INFO] Sending speech generation request with model {tts_model()}")
 
         response = requests.post(
             f"{self.base_url}/audio/speech",
@@ -122,10 +145,10 @@ class TextToSpeechTests(ServerTestBase):
             f"Speech generation failed with status {response.status_code}: {response.text}",
         )
 
-        # OPUS files start with specific magic bytes
+        magic = b"OggS" if response_format == "opus" else b"RIFF"
         self.assertTrue(
-            response.content[:4] == b"OggS",
-            "Decoded data should be a valid Ogg file",
+            response.content[: len(magic)] == magic,
+            f"Decoded data should be a valid {response_format.upper()}",
         )
 
         print(f"[OK] Speech generation successful")
@@ -133,13 +156,13 @@ class TextToSpeechTests(ServerTestBase):
     def test_005_tts_stream(self):
         """Test streaming speech generation with Kokoro."""
         payload = {
-            "model": TTS_MODEL,
+            "model": tts_model(),
             "input": "Lemonade can speak",
             "voice": "onyx",
             "stream_format": "audio",
         }
 
-        print(f"[INFO] Sending speech generation request with model {TTS_MODEL}")
+        print(f"[INFO] Sending speech generation request with model {tts_model()}")
 
         response = requests.post(
             f"{self.base_url}/audio/speech",
@@ -174,15 +197,17 @@ class TextToSpeechTests(ServerTestBase):
         print(f"[OK] Speech generation successful")
 
     def test_006_tts_speed(self):
-        """Test voice selection with Kokoro."""
+        """Test the speech speed multiplier."""
+        if not active_supports("tts_speed"):
+            self.skipTest("Skipping: speed not supported by the active TTS backend")
         payload = {
-            "model": TTS_MODEL,
+            "model": tts_model(),
             "input": "Lemonade can speak",
             "speed": 0.75,
             "response_format": "wav",
         }
 
-        print(f"[INFO] Sending speech generation request with model {TTS_MODEL}")
+        print(f"[INFO] Sending speech generation request with model {tts_model()}")
 
         response = requests.post(
             f"{self.base_url}/audio/speech",
@@ -207,13 +232,13 @@ class TextToSpeechTests(ServerTestBase):
     def test_007_tts_stream_rejects_unstreamable_format(self):
         """A format the backend can only emit buffered must not be streamed."""
         payload = {
-            "model": TTS_MODEL,
+            "model": tts_model(),
             "input": "Lemonade can speak",
             "stream_format": "audio",
             "response_format": "mp3",
         }
 
-        print(f"[INFO] Requesting streamed mp3 from {TTS_MODEL} (expected to fail)")
+        print(f"[INFO] Requesting streamed mp3 from {tts_model()} (expected to fail)")
 
         response = requests.post(
             f"{self.base_url}/audio/speech",
@@ -236,4 +261,4 @@ class TextToSpeechTests(ServerTestBase):
 
 
 if __name__ == "__main__":
-    run_server_tests(TextToSpeechTests, "TTS TESTS")
+    run_server_tests(TextToSpeechTests, "TTS TESTS", modality="tts")

@@ -21,6 +21,12 @@
           "acestep-cuda-windows-x64.zip": "sha256:f278b148eaff7f3fc3fee9a2f4503dbc94759356e0c48074310538026c3fc059"
         }
       },
+      "IIIIIllllIIIIIlllll/audio.cpp": {
+        "v0.9.0": {
+          "audiocpp-bin-win-hip-rocm6.4-x64.zip": "sha256:12e0135c65ee2b522eb98051dcc83b087bf76089deccc458dfa4e8b81c65f155",
+          "audiocpp-bin-win-hip-rocm7.1-x64.zip": "sha256:decf08a071b5debe29f96ec1b87238bb1caa673ee4d52ed21298cb3dc8f31923"
+        }
+      },
       "pwilkin/thinksound.cpp": {
         "v0.1.2": {
           "thinksound-vulkan-linux-x64.tar.gz": "sha256:913cb141ff0bcde488474fbba9e911437e2cbf58dd12a0a41251dbe4fa69e61f",
@@ -149,6 +155,9 @@
   "kokoro": {
     "cpu": "b21",
     "metal": "b21"
+  },
+  "audio.cpp": {
+    "rocm": "v0.9.0"
   },
   "vllm": {
     "comment": "'rocm' is the default (RDNA) pin. 'rocm_arch_overrides' pins per detected asset family (rocm_asset_family output) where AMD's vLLM/ROCm wheel cadence diverges: CDNA-dcgpu (gfx942, gfx950) shares no release tag with the RDNA line, so it pins its own version. gfx950 (CDNA4) rides the same CDNA vLLM/ROCm line as gfx942 (CDNA3). Review each override at release time - feature/fix parity across arch lines lags until bumped.",

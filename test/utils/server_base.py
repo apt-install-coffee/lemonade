@@ -397,6 +397,8 @@ def _build_runtime_config(additional_server_args=None):
         config["trellis"] = {"backend": backend}
     elif wrapped_server == "openmoss" and backend:
         config["openmoss"] = {"backend": backend}
+    elif wrapped_server == "audio.cpp" and backend:
+        config["audio"] = {"backend": backend}
 
     # Parse additional_server_args for known flags
     additional = list(_config.get("additional_server_args", []))
@@ -435,8 +437,9 @@ def _build_runtime_config(additional_server_args=None):
 
 # Recipes whose "rocm" backend resolves to the rocm-stable channel and therefore
 # trigger a TheRock runtime download on a cold cache (see will_install_therock in
-# backend_manager.cpp). Other rocm consumers (vllm, llamacpp rocm-nightly) bundle
-# their own runtime and do not need this.
+# backend_manager.cpp). Other rocm consumers (vllm, llamacpp rocm-nightly,
+# audio.cpp's bundled-runtime HIP package) bundle their own runtime and do not
+# need this.
 _THEROCK_RECIPES = (
     "llamacpp",
     "sd-cpp",

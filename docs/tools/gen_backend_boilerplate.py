@@ -64,19 +64,27 @@ def find_lemond(explicit: str | None) -> Path:
 
 
 class Lemond:
-    """Boots a throwaway lemond on a free port with an isolated cache dir."""
+    """Boots a throwaway lemond on a free port with isolated cache and config dirs."""
 
     def __init__(self, binary: Path):
         self.binary = binary
         self.port = free_port()
         self._cache = tempfile.TemporaryDirectory(prefix="lemond-docs-")
+        # /internal/config mirrors the live merged config, so the host's
+        # config.json must stay out of it or the generated config example
+        # would embed machine-local settings and fail the docs-drift check.
+        self._config = tempfile.TemporaryDirectory(prefix="lemond-docs-cfg-")
         self._proc: subprocess.Popen | None = None
 
     def __enter__(self):
+        # LEMONADE_* env overrides (distro packaging sets LEMONADE_DEFAULTS_PATH,
+        # for example) would leak machine-specific values into the generated docs.
+        env = {k: v for k, v in os.environ.items() if not k.startswith("LEMONADE_")}
         self._proc = subprocess.Popen(
-            [str(self.binary), self._cache.name, "--port", str(self.port)],
+            [str(self.binary), self._cache.name, self._config.name, "--port", str(self.port)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            env=env,
         )
         deadline = time.time() + 60
         while time.time() < deadline:
@@ -101,6 +109,7 @@ class Lemond:
             except Exception:
                 self._proc.kill()
         self._cache.cleanup()
+        self._config.cleanup()
 
     def _get(self, path: str, timeout: float = 5):
         url = f"http://127.0.0.1:{self.port}{path}"

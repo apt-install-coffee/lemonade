@@ -1127,6 +1127,11 @@ jobs:
             extra_args: ""
             backends: ""
             runner: [self-hosted, Windows, X64, lemon-prod]
+          - name: tts-audio
+            script: server_tts.py
+            extra_args: "--wrapped-server audio.cpp"
+            backends: "rocm"
+            runner: [Windows, X64, rocm, vulkan, lemon-prod]
           - name: 3d-trellis
             script: server_3d.py
             extra_args: "--wrapped-server trellis"

@@ -10,6 +10,7 @@ the generator instead. Prose outside the markers is preserved. -->
 | Recipe | Name | Selectable backend | Uses ctx_size | Backends |
 |--------|------|--------------------|---------------|----------|
 | `acestep` | ACE-Step | yes | no | cuda, rocm, vulkan |
+| `audio.cpp` | Audio.cpp | yes | no | rocm |
 | `ds4` | DwarfStar4 | no | yes | rocm |
 | `flm` | FastFlowLM NPU | no | yes | npu |
 | `kokoro` | Kokoro | no | no | cpu, metal |
@@ -37,6 +38,7 @@ Each backend has a tier and a format; see [Backend Tiers and Formats](../api/lem
 | `acestep` | cuda | experimental | native | linux, windows | nvidia_gpu |
 | `acestep` | vulkan | experimental | native | linux, windows | amd_gpu; cpu (x86_64); nvidia_gpu |
 | `acestep` | rocm | experimental | native | linux, windows | amd_gpu (gfx103X, gfx110X, gfx1150, gfx1151, gfx1152, gfx120X) |
+| `audio.cpp` | rocm | experimental | native | windows | amd_gpu (gfx1100, gfx1101, gfx1102, gfx1103, gfx1150, gfx1151, gfx1200, gfx1201) |
 | `ds4` | rocm | guest | native | linux | amd_gpu (gfx1151) |
 | `flm` | npu | core | native | linux, windows | amd_npu (XDNA2) |
 | `kokoro` | metal | core | native | macos | metal |
@@ -92,6 +94,13 @@ Each backend has a tier and a format; see [Backend Tiers and Formats](../api/lem
 | Option | CLI flag | Type | Default | Description |
 |--------|----------|------|---------|-------------|
 | `acestep_backend` | `--acestep` | BACKEND | "" | ACE-Step backend to use |
+
+#### `audio.cpp` — Audio.cpp
+
+| Option | CLI flag | Type | Default | Description |
+|--------|----------|------|---------|-------------|
+| `audio.cpp_backend` | `--audio` | BACKEND | "" | audio.cpp backend to use |
+| `audio_args` | `--audio-args` | ARGS | "" | Custom arguments to pass to audiocpp_server (must not conflict with managed args) |
 
 #### `ds4` — DwarfStar4
 

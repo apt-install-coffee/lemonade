@@ -473,6 +473,13 @@ The following options are available depending on the recipe being used:
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--openmoss BACKEND` | OpenMOSS TTS backend to use | Auto-detected |
+
+#### Audio.cpp (`audio.cpp` recipe)
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--audio BACKEND` | audio.cpp backend to use | Auto-detected |
+| `--audio-args ARGS` | Custom arguments to pass to audiocpp_server (must not conflict with managed args) | `""` |
 <!-- END GENERATED: cli-recipe-options -->
 **Notes:**
 - Unspecified options will use the backend's default values
