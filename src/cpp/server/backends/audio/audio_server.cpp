@@ -11,6 +11,7 @@
 #include "lemon/utils/custom_args.h"
 #include "lemon/utils/json_utils.h"
 #include "lemon/utils/path_utils.h"
+#include <cstdio>
 #include <filesystem>
 #include <httplib.h>
 #include <set>
@@ -29,6 +30,58 @@ namespace backends {
 namespace {
 bool is_rocm_backend(const std::string& backend) {
     return backend == "rocm" || backend == "rocm-stable";
+}
+
+// audiocpp_server builds differ in the GPU backends they compile in: nix HIP
+// packages answer "hip" while Vulkan-only packages reject it outright, so ask
+// the binary (its --help prints `--backend cpu|cuda|hip|...`) instead of
+// guessing from the platform. Returns "" when the list can't be read.
+std::string detect_engine_backend(const std::string& exe_path) {
+#ifdef _WIN32
+    FILE* pipe = _popen(("\"" + exe_path + "\" --help 2>&1").c_str(), "r");
+#else
+    FILE* pipe = popen(("\"" + exe_path + "\" --help 2>&1").c_str(), "r");
+#endif
+    if (!pipe) return "";
+    std::string output;
+    char buf[512];
+    while (fgets(buf, sizeof(buf), pipe)) {
+        output += buf;
+    }
+#ifdef _WIN32
+    _pclose(pipe);
+#else
+    pclose(pipe);
+#endif
+
+    auto has_word = [](const std::string& text, const std::string& word) {
+        for (size_t p = text.find(word); p != std::string::npos; p = text.find(word, p + 1)) {
+            bool left = p == 0 || text[p - 1] == '|';
+            size_t end = p + word.size();
+            bool right = end == text.size() || text[end] == '|';
+            if (left && right) return true;
+        }
+        return false;
+    };
+
+    // The help lists the values as `backend cpu|cuda|hip|rocm|vulkan|metal`.
+    for (size_t at = output.find("backend"); at != std::string::npos;
+         at = output.find("backend", at + 1)) {
+        size_t i = at + 7;
+        while (i < output.size() && output[i] == ' ') i++;
+        size_t end = i;
+        while (end < output.size()
+               && ((output[end] >= 'a' && output[end] <= 'z') || output[end] == '|')) {
+            end++;
+        }
+        std::string list = output.substr(i, end - i);
+        if (list.find('|') == std::string::npos) continue;
+        for (const char* candidate : {"hip", "rocm", "vulkan", "cpu"}) {
+            if (has_word(list, candidate)) return candidate;
+        }
+        return "";
+    }
+    return "";
 }
 }  // namespace
 
@@ -134,15 +187,19 @@ void AudioServer::load(const std::string& model_name,
         voice_presets["onyx"] = {{"voice_id", "M1"}};
     }
 
-    // The engine's GPU backend name differs per package: the Windows HIP fork
-    // accepts "hip", while the nix Linux package is a Vulkan build (RADV on
-    // amd_gpu). The config carries the value; audio_args may still pass
-    // --backend to override it (the CLI flag wins over the config).
+    // The config carries the engine backend; audio_args may still pass
+    // --backend to override it (the CLI flag wins over the config). Ask the
+    // resolved binary which backends it was compiled with — this machine
+    // carries both a HIP and a Vulkan audiocpp_server build.
+    std::string engine_backend = detect_engine_backend(exe_path);
+    if (engine_backend.empty()) {
 #ifdef _WIN32
-    const std::string engine_backend = "hip";
+        engine_backend = "hip";
 #else
-    const std::string engine_backend = "vulkan";
+        engine_backend = "vulkan";
 #endif
+    }
+    LOG(INFO, "AudioServer") << "Engine backend: " << engine_backend << std::endl;
 
     json server_config = {
         {"host", "127.0.0.1"},
